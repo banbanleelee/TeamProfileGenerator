@@ -1,50 +1,65 @@
 const inquirer = require('inquirer');
 const fs = require('fs');
+
 const Employee = require('./lib/employee');
 const Manager = require('./lib/manager');
 const Engineer = require('./lib/engineer');
 const Intern = require('./lib/intern');
-let headCount = 0;
+
+let teamMembers = [];
 
 const generalQuestions = [
     {
-        type: 'input',
-        name: 'name',
-        message: 'What\'s the name?',
+        type: 'list',
+        name: 'title',
+        message: 'Select the title of this employee',
+        choices: ['Engineer', 'Intern'],
     },
     {
         type: 'input',
+        name: 'firstName',
+        message: 'Enter employee\'s first name',
+    },
+    {
+        type: 'number',
         name: 'id',
-        message: 'What\'s the ID?',
+        message: 'Enter employee\'s id',
     },
     {
         type: 'input',
         name: 'email',
-        message: 'What\'s the email?',
+        message: 'Enter employee\'s email',
     },
 ];
 
-const selectRole = [
-    {
-        type: 'list',
-        name: 'role',
-        message: 'What\'s the role of this employee?',
-        choices: ['Manager', 'Engineer', 'Intern'],
-    },
-];
 
-const managerQuestion = [
+const managerQuestions = [
     {
         type: 'input',
-        name: 'additional', 
-        message: 'What\'s the manager\'s office number?',
-    }
+        name: 'firstName',
+        message: 'Enter manager\'s first name',
+    },
+    {
+        type: 'number',
+        name: 'id',
+        message: 'Enter manager\'s id',
+    },
+    {
+        type: 'input',
+        name: 'email',
+        message: 'Enter manager\'s email',
+    },
+    {
+        type: 'number',
+        name: 'officeNumber', 
+        message: 'Enter manager\'s office number',
+    },
 ];
 
 const engineerQuestion = [
     {
         type: 'input',
-        name: 'additional', 
+        name: 'gitHub', 
         message: 'What\'s the engineer\'s github username?',
     }
 ];
@@ -52,65 +67,105 @@ const engineerQuestion = [
 const internQuestion = [
     {
         type: 'input',
-        name: 'additional', 
-        message: 'What\'s the engineer\'s school name?',
+        name: 'school', 
+        message: 'What\'s the intern\'s school name?',
     }
 ];
 
-const addRoles = [
+const newEmployeeQuestion = [
     {
         type: 'confirm',
-        name: 'addRoles',
+        name: 'addNewEmployee',
         message: 'Do you want to add a new role to the roster?',
-        default: true,
     }
 ];
 
-( async () => {
-    const role = await inquirer.prompt(selectRole);
-    const info1 = await inquirer.prompt(generalQuestions);
+createManager = () => {
+    inquirer
+        .prompt(managerQuestions)
+        .then((data) => {
+            const manager = new Manager(
+                data.firstName,
+                data.id,
+                data.email,
+                data.officeNumber
+            );
+            manager.isValidManager();
+            console.log(`New staff: \n First name: ${manager.firstName} \n Title: ${manager.title} \n ID: ${manager.id} \n Email: ${manager.email} \n Office Number: ${manager.officeNumber}`);
+            teamMembers.push(manager);
+            console.log('teamMembers', teamMembers);
+            createNewEmployee();
+        })
+};
 
-    console.log('role', role.role);
+createEmployee = () => {
+    inquirer
+        .prompt(generalQuestions)
+        .then((data) => {
+            if(data.title === 'Engineer') {
+                getGitHub(data);
+            } else {
+                getSchool(data);
+            }
+        })
+};
 
-    let info2;
-    let category;
-    switch (role.role) {
-        case 'Manager':
-            info2 = await inquirer.prompt(managerQuestion);
-            category = 'Office number';
-            break;
-        case 'Engineer':
-            info2 = await inquirer.prompt(engineerQuestion);
-            category = 'GitHub';
-            break;
-        case 'Intern':
-            info2 = await inquirer.prompt(internQuestion);
-            category = 'School';
-            break;
-    }
+getGitHub = (data) => {
+    inquirer
+        .prompt(engineerQuestion)
+        .then((data1) => {
+            data.gitHub = data1.gitHub;
+            const engineer = new Engineer(
+                data.firstName,
+                data.id,
+                data.email,
+                data.gitHub
+            );
+            engineer.isValidEngineer();
+            console.log(`New staff: \n First name: ${engineer.firstName} \n Title: ${engineer.title} \n ID: ${engineer.id} \n Email: ${engineer.email} \n GitHub Username: ${engineer.gitHub}`)
+            teamMembers.push(engineer);
+            console.log('teamMembers', teamMembers);
+            createNewEmployee();
+        })
+};
 
-    const employee =  { ...role, ...info1, ...info2 };
+getSchool = (data) => {
+    inquirer
+        .prompt(internQuestion)
+        .then((data1) => {
+            data.school = data1.school;
+            const intern = new Intern(
+                data.firstName,
+                data.id,
+                data.email,
+                data.school
+            );
+            intern.isValidIntern();
+            console.log(`New staff: \n First name: ${intern.firstName} \n Title: ${intern.title} \n ID: ${intern.id} \n Email: ${intern.email} \n School Name: ${intern.school}`)
+            teamMembers.push(intern);
+            console.log('teamMembers', teamMembers);
+            createNewEmployee();
+        })
+};
 
-    console.log('employee', employee);
+const createNewEmployee = () => {
+    inquirer
+        .prompt(newEmployeeQuestion)
+        .then((data) => {
+            if (data.addNewEmployee) {
+                createEmployee();
+            } else {
+                fs.readFile('dist/index.js', 'utf8', (error, data) => {
+                    if (error) {
+                        console.error(error);
+                    } 
+                    const update = data.replace('{teamMembers}', JSON.stringify(teamMembers));
+                    fs.writeFile('dist/demo.js', update, "utf8", function (error) {
+                        error ? console.error(error) : console.log('Commit logged!')
+                    });
+                });
+            }
+        })
+};
 
-    fs.readFile('./dist/index.html', 'utf8', (err, file) => {
-        if (err) {
-            throw err;
-        }
-        const infoCard = file
-            .replace('{firstName}', employee.name)
-            .replace('{role}', employee.role)
-            .replace('{id}', employee.id)
-            .replace('{email}', employee.email)
-            .replace('{additional}', `${category}: ${employee.additional}`);
-        
-        fs.writeFile('./dist/demo.html', infoCard, (err) =>
-            err ? console.error(err) : console.log('successfully added one employee.')
-        );
-    
-    });
-    return employee;
-})()
-.then(console.log)
-.catch(console.error);
-
+createManager();
